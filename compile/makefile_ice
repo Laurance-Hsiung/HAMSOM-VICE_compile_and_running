@@ -1,0 +1,121 @@
+# Make File Creation run in directory:
+
+##CPP = xlC_r -E
+CPP = /usr/bin/cpp
+###FC = mpxlf95_r
+FC = mpif90
+
+#------------------------------------------------
+#         compile flags
+# -c    : only compiling by f90, create *.o
+# -ef   : enable postprocessing with flowview
+# -eg   : enable debugging
+# -eR   : enable run time checking for array subscriptions and dimensions
+# -m[x] : specify the message level (warnings)
+# -r[x] : generate listfile *.lst; listlevel [x]
+# -O[x] : set optimizating level to [x]
+# -R[x] : include runtime checking x = [abc]
+#----------------------------------------------
+
+##FFLAGS = -qrealsize=8 -qhot -qreport -qdpc=e -qtbtable=full -q64 -qextname -qsuppress=1518-061:1518-128 -O3 -qstrict -qMAXMEM=-1 -Q -qarch=auto -qtune=auto -qcache=auto -qfloat=fltint -qsuffix=cpp=f90 -qzerosize -qessl -Wl,-bdatapsize:64K -Wl,-bstackpsize:64K
+##LDFLAGS = -qrealsize=8 -qhot -qreport -qdpc=e -qtbtable=full -q64 -qextname -qsuppress=1518-061:1518-128 -O3 -qstrict -qMAXMEM=-1 -Q -qarch=auto -qtune=auto -qcache=auto -qfloat=fltint -qsuffix=cpp=f90 -qzerosize -qessl -Wl,-bdatapsize:64K -Wl,-bstackpsize:64K -Wl,-btextpsize:64K
+
+##FFLAGS = -cpp -r8 -fp-model precise  -g -pg   -assume byterecl
+##FFLAGS = -cpp -assume byterecl
+FFLAGS = -cpp -r8 -g -fp-model precise -O3 -assume byterecl  -qzerosize -qessl -q64 -qrealsize=8 
+#FFLAGS = -cpp -r8 -g -fp-model precise -O3 -assume byterecl  -qzerosize -qessl -q64 -qrealsize=8
+#FFLAGS = -cpp -r8 -g -fp-model precise -O3 -assume byterecl   
+CPPFLAGS = -P -traditional
+##LDFLAGS = -L/home/export/base/opt/mpi3/bin/mpif90
+LDFLAGS  = #-lnetcdf
+
+LIBS= #-lmpi
+#INCLUDES = #-I/home/export/base/opt/mpi3/bin/
+INCLUDES = #-I/fs2/software/mpich/4.0.2-mpi-x-gcc12.2/bin
+
+F = .f90
+#F = .F90
+O = .o
+L = .l
+
+.SUFFIXES: 
+.SUFFIXES: $F $O
+
+#-----------------------------------------------
+#     compiler switches for program control
+#     -------------------------------------
+# -DDebug            : Aktivierung von Debuginfo
+# -DCalcHBottomOld   : 
+# -DCalcHBottomNew   : 
+# -DTestCase         : 
+# -DCaseStudy        : 
+# -DERA40            : 
+# -DPROFILE          : Aktivierung von profile mit trace_*
+#-----------------------------------------------
+# DF = -WF,-DCalcHBottomOld -WF,-DMPI -WF,-DM2Old -WF,-DNOVEC
+# DF = -WF,-DCalcHBottomOld -WF,-DMPI -WF,-DM2Old -WF,-DPROFILE -WF,-D__hpm__
+# DF = -WF,-DCalcHBottomOld -WF,-DMPI -WF,-DM2Old -WF,-DNOVEC -WF,-DPROFILE
+
+###DF = -DCalcHBottomOld -DMPI -DNOVEC
+#DF = -DCalcHBottomOld -DMPI -DNOVEC -DTIDE_XinpingChen
+#DF = -DCalcHBottomOld -DMPI -DNOVEC -DM2Old -DDebug -DICE 
+DF = -DCalcHBottomOld -DMPI -DNOVEC -DTIDE_XinpingChen -DICE
+
+#OBJS1= Modules$O
+OBJS = Modules$O    Main$O       Init$O     Boundary$O     \
+       CalcAv$O     Continuity$O DataOut$O   CalcTS$O   \
+       EOS$O        Implicit$O   InOut$O     Momentum$O   \
+       NonLinear$O  SOR$O        Tools$O     Topo$O       \
+       Average$O    River$O      VelField$O  Par$O        \
+       Thermodynamics_ice$O  Dynamics_ice$O  NonBoussinesq$O  Stress_ice$O  Tide_ph0$O
+     
+##NCLUDES = -I/usr/lpp/ppe.hpct/include
+
+#LIBS = -L/usr/local/ihpct_2.2/lib64 -lhpm -lpmapi -llicense -L/usr/local/lib -llapack-essl -lessl -q64 -llapi_r
+# LIBS = -L/usr/local/ihpct_2.2/lib64 -lhpm -llicense -L/usr/pmapi/lib -lpmapi -L/usr/local/lib -llapack-essl -lessl -q64 -llapi_r -bnoquiet
+# LIBS = -L/usr/local/ihpct_2.2/lib64 -lhpm -L/usr/pmapi/lib -lpmapi -L/usr/local/lib -lessl -q64 -llapi_r -bnoquiet
+###LIBS = -L/usr/lpp/ppe.hpct/lib64 -lhpc -lmpitrace -L/usr/pmapi/lib -lpmapi -lhpm_r -L/usr/lib -lessl -bnoquiet -q64 -llapi_r
+
+###############################################
+# BASIC COMPILE INSTRUCTIONS AND DEPENDENCIES #
+###############################################
+
+#initialize source and object names.
+
+#local_sub  := src
+
+#local_src  := $(wildcard $(local_sub)/*.F90)
+
+#local_objs := $(subst .F90,.o,$(local_src))
+
+#objects    += src/Modules.o $(local_objs)
+#objs       :=  $(patsubst $(local_sub)/%.o,%.o,$(local_objs))
+
+clean_list := core *.o *.mod *.f90 *.i90 *.lst%.o: %.F90    
+
+
+%.o: %.F90
+%.o: %.f90    
+	$(FC) $(FFLAGS) $(INCLUDES) -c $< 
+%.f90: %.F90
+	$(CPP) $(CPPFLAGS) $(DF) $(INCLUDES) $< > $*.f90
+
+
+#.PHONY: $(BIN)
+
+#$(BIN): $(objects)
+#        $(LD) -o $@ $(LDFLAGS) $(objs) $(LIBS)
+
+Model:	$(OBJS)
+	@echo "===== linking"
+#	$(FC) -o $@ $(LDFLAGS) $(OBJS1) $(LIBS)
+	$(FC) -o $@ $(LDFLAGS) $(OBJS) $(LIBS)
+
+clean:
+	rm -f $(clean_list)
+# End of Makefile for KWModel
+
+
+
+
+

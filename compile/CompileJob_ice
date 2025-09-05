@@ -1,0 +1,144 @@
+#!/bin/csh
+# source /SX/opt/etc/initsx.csh
+
+set On            = 1
+set Off           = 0
+set RunIDDefault  = 999
+set RunID         = 007
+set ExecuteModel  = $On
+set NoOfProcs     = 32
+
+set SourceID      = ''     
+set Source        = src
+
+#set nnodes        = 12
+set JobName       = Bohai_case
+
+#if ($1 == '') then
+#  set RunID = ${RunIDDefault}
+#else
+#  set RunID = $1
+#endif
+
+if ($2 != '') set Source = src.$2
+
+echo '**************************************'
+echo '***  running compile job for RunID '$RunID
+echo '***                       SourceID '$SourceID
+###echo '***               source code from '${SourceDir}/${Source}
+echo '**************************************'
+
+#set HomeDir = $HOME
+
+set SourceDir     = code
+# set HomeDir = /fs2/home/jiabin/HAMSOM_VICE
+set DestDir = /fs2/home/jiabin/XHAMSOM_VICE #xlb,2024/5/30
+set BaseDir = ${DestDir}
+set CompileDir = ${DestDir}/compile
+set WorkDir = ${DestDir}/run
+#set ListDir = ${BaseDir}/list/${SourceDir}/${RunID}
+#set ObjDir  = ${BaseDir}/objects/${SourceDir}/${RunID}
+#set TempDir = ${BaseDir}/${Source}${SourceDir}.${RunID}
+
+############################set temporary directory,xlb,2024/5/3##############################
+set TempDir = ${DestDir}/${Source}${SourceDir}.${RunID}
+set DestRunDir = ${DestDir}/run
+set ListDir = ${DestDir}/code/list/${SourceDir}/${RunID}#store source code
+set ObjDir  = ${DestDir}/compile/objects/${SourceDir}/${RunID}#store .obj
+##############################################################################################
+
+#mkdir -p ${WorkDir}
+mkdir -p ${TempDir}
+
+cd    ${TempDir}###########present directory,xlb,2024/5/03
+
+#----------------liwg------------------------------#
+#cp -p ${HomeDir}/${SourceDir}/${Source}/${SourceID}*.F90  ./       
+#cp -p ${HomeDir}/${SourceDir}/${Source}/config.txt    ./     
+#cp -p ${HomeDir}/${SourceDir}/${Source}/mpif.h     ./      
+#--------------------------------------------------#
+
+#since source code had been copied to /fs2/home/jiabin/XHAMSOM_VICE/code/src
+#we can have a directory,xlb/2024/5/3
+#----------------------xlb-------------------------------#
+cp -p ${DestDir}/${SourceDir}/${Source}/${SourceID}*.F90  ./       
+cp -p ${DestDir}/${SourceDir}/${Source}/config.txt    ./     
+cp -p ${DestDir}/${SourceDir}/${Source}/mpif.h     ./      
+#-----------------------------------------------------#
+
+if (-e ${ObjDir}) then
+#  cp -p ${ObjDir}/${SourceID}*.o      ./
+#  cp -p ${ObjDir}/*.mod               ./
+  cp -p ${ObjDir}/*.o      ./  
+  cp -p ${ObjDir}/*.mod               ./
+endif
+
+#-------------------liwg--------------------------#
+cp -p ${CompileDir}/makefile_ice ./makefile  
+#-------------------------------------------------#
+
+ls -l
+echo "===== Run make"
+
+if ( ${NoOfProcs} > 1 ) then
+  (make MLModules.o --warn-undefined-variables > /dev/tty) >& makefile.err
+  (make -j ${NoOfProcs} | tee makefile.out > /dev/tty) >& makefile.err
+else
+  (make --warn-undefined-variables > /dev/tty) >& makefile.err
+endif
+@ NoError = (-e ${SourceID}Model)
+
+
+if (${NoError}) then
+  ls -l *${SourceID}Model*
+#  mv ${SourceID}Model       ${WorkDir}/${SourceID}Model.${RunID}
+  mv ${SourceID}Model       ${DestRunDir}/${SourceID}Model.${RunID}
+  echo " "
+  echo " ====================================="
+  echo "         compiling successful"
+  echo " ====================================="
+  echo " "
+else
+  echo "===== Compile messages:"
+  #cat makefile.err
+#  cp makefile.out ${WorkDir}/${SourceID}Model.${RunID}.make
+#  cp makefile.err ${WorkDir}/${SourceID}Model.${RunID}.err
+  cp makefile.out ${DestRunDir}/${SourceID}Model.${RunID}.make
+  cp makefile.err ${DestRunDir}/${SourceID}Model.${RunID}.err
+ 
+
+  echo " "
+  echo " #####################################"
+  echo "             make error"
+  echo " #####################################"
+endif
+
+echo "===== Copying listings and object files"
+mkdir -p ${ListDir}
+mkdir -p ${ObjDir}
+cp -p ${SourceID}*.lst ${ListDir}#here copy .lst
+cp -p ${SourceID}*.F90 ${ListDir}#here copy .F90
+cp -p ${SourceID}*.o   ${ObjDir}#here copy .o
+cp -p *.mod            ${ObjDir}
+
+cd ${WorkDir}
+rm -r ${TempDir}
+
+if ( ! ${NoError} ) exit 10
+
+if ( ${ExecuteModel} ) then
+  echo " ====================================="
+  echo "          submitting run job"
+  echo " ====================================="
+
+#-------------jiabin-----------------
+#./${SourceID}Model.${RunID} > runlog${RunID}
+#bsub -q q_x86_cpeo1 -n $nnodes -o runlog${RunID} -J $JobName ./${SourceID}Model.${RunID}
+#bsub -q q_x86_cpeo1 -node 40412-40414,40417 -n 48 -o runlog${RunID} -J $JobName ./${SourceID}Model.${RunID}
+#bsub -q q_x86_envision -node 40663 -n 12 -o runlog${RunID} -J $JobName ./${SourceID}Model.${RunID}
+#bsub -q q_x86_free -node 40207,40210,40220 -n 36 -o runlog${RunID} -J $JobName ./${SourceID}Model.${RunID}
+#bsub -q q_x86_free -n $nnodes -o runlog${RunID} -J $JobName ./${SourceID}Model.${RunID}
+#bsub -q q_x86_cpeo1 -node 40424-40431 -o runlog${RunID} -J $JobName -n 96 ./${SourceID}Model.${RunID}
+endif
+
+exit 0
